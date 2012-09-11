@@ -1,0 +1,212 @@
+<h1>Running Gumstix on <a href="http://qemu.org/">QEMU</a></h1>
+
+<p>QEMU is an emulator which can simulate the ARM processor on other processors.
+The gumstix platform can be simulated on QEMU to provide enhanced debugging
+support through GDB. QEMU runs a GDB server, which you then connect to to set
+breakpoints, look at registers, etc.</p>
+
+<p>Note that this is not for the faint of heart. The reward of doing this is that
+you've got GDB, but it's not exactly easy to set up. Some of these steps require
+you to be fairly familiar with unix commands. For me, however, I find GDB
+invaluable, especially at the kernel level.</p>
+
+<h2>Getting set up</h2>
+
+<ol>
+<li><p>Install QEMU. Afterwards, you should be able to run the <code>gumstix-system-arm</code>
+command in a shell (nothing interesting will happen just yet)</p></li>
+<li><p>Install an arm toolchain. You will need this for compilation of your code
+and most machines certainly don't have this by default.</p>
+
+<ul>
+<li>OSX or Windows - You can find a pre-built toolchain
+<a href="http://sourceforge.net/projects/yagarto/files/">here</a>. Currently, I would
+recommend you use the oldest build they have because that version of GCC
+most closely matches that provided by 349. There may be a few other
+differences, but I have not currently had any problems with this toolchain.
+I couldn't get the newer toolchains to work because when compiling files,
+they would link <code>_start</code> as the entry point, but it would not be located
+at <code>0xa3000000</code> like you told the linker.</li>
+<li>Unix - There's probably a tutorial somewhere on the internet
+about getting an arm toolchain. You're going to want a GCC version which
+closely matches 349's version, but it probably doesn't have to be exact.</li>
+</ul></li>
+</ol>
+
+<p>Your arm toolchain should have some prefix like 'arm-linux-',
+   'arm-elf-', 'arm-none-eabi-', or something like that. You'll have to run
+   all your <code>make</code> commands like</p>
+
+<pre><code>    make CCPREFIX=&lt;prefix&gt;
+</code></pre>
+
+<p>Finally, make sure your toolchain also has <code>gdb</code> with it, because that will
+   be used with QEMU. Normal GDB won't work because it will try to disassemble
+   ARM opcodes as x86 opcodes.</p>
+
+<ol>
+<li><p><a href="http://www.contrib.andrew.cmu.edu/~acrichto/flash.img">Download</a> a flash
+image for qemu, or create it with the instructions below. At this point, you
+should be able to run the following command and see the u-boot prompt</p>
+
+<pre><code>qemu-system-arm -M verdex -pflash ./flash.img -nographic
+</code></pre></li>
+<li><p><a href="http://www.contrib.andrew.cmu.edu/~acrichto/sdcard.img">Download</a> an
+SD card image, or build your own using the commands below. You should
+now be able to run this command:</p>
+
+<pre><code>qemu-system-arm -M verdex -pflash ./flash.img -nographic -sd sdcard.img
+</code></pre></li>
+</ol>
+
+<p>You should see the u-boot prompt, and if you don't interrupt it, then
+   you should see the gumstix prompt. If you poke around the filesystem then
+   you should see you've everything in the 349 filesystem.</p>
+
+<ol>
+<li><p>Hook up GDB to QEMU for debugging support. If you start qemu with the <code>-s</code>
+flag, then it will create a GDB server which you can then connect to. Start
+a session of your arm toolchain gdb, and run</p>
+
+<pre><code>target remote :1234
+</code></pre></li>
+</ol>
+
+<p>And you've connected to qemu! QEMU ceases emulation until you type <code>continue</code>
+   in gdb, but you can poke around memory and do whatever you like.</p>
+
+<h2>Development workflow</h2>
+
+<p>Once you've got qemu, an arm toolchain, and working images, then you can start
+compiling your code. You can compile all code on your machine with your arm
+toolchain, but then you need to copy files over to the boot partition so u-boot
+can use them.</p>
+
+<ul>
+<li><p>OSX - just double click on the image file which should mount the FAT partition
+    and ignore the ext3 partition. You can then just copy files to/from
+    this mount as usual, and even run qemu while it's mounted!</p></li>
+<li><p>Unix - I have not tested this at all, but in theory this should work:</p>
+
+<pre><code>sudo losetup /dev/loop0 sdcard.img
+sudo kpartx -a /dev/loop0
+sudo mount /dev/mapper/loop0p1 /media/bootfs
+</code></pre></li>
+</ul>
+
+<p>Now <code>/media/bootfs</code> should be the filesystem of the boot partition of the
+  SD card. I'm not sure if you'll be able to run qemu with the partition
+  mounted, but you can certainly try!</p>
+
+<p>Now your workflow would be:</p>
+
+<ul>
+<li>Compile</li>
+<li>Copy to boot partition</li>
+<li>Run qemu, interrupting u-boot, and do your <code>mmcinit/fatload</code> fun</li>
+</ul>
+
+<h2>Symbolic debugging</h2>
+
+<p>It's really useful to have symbolic debugging in GDB so you can type
+<code>break main</code> instead of <code>break 0xa292a3ec</code>. To do this, add the <code>-g</code> flag
+to the <code>CFLAGS</code> variable in your Makefile. This will produce an executable
+with debugging symbols enabled. Now in gdb:</p>
+
+<pre><code>symbol-file path/to/your/kernel
+</code></pre>
+
+<p>And now you have symbols in GDB! If you're debugging user and kernel level
+programs, then you'll have to load a new symbol-file when switching between
+the kernel and the user.</p>
+
+<h2>Creating a flash image</h2>
+
+<p>The flash image is the original contents of memory when the gumstix boots.
+In theory, the flash is ROM. With qemu, however, this isn't enforced at all,
+so you may have to re-create the image periodically or redownload it if it gets
+corrupted because your code runs wild. Here are the commands to build a flash
+image from scratch</p>
+
+<pre><code>root=http://www.contrib.andrew.cmu.edu/~acrichto
+
+# The gumstix requires a root filesystem to be available on the image.
+# This is not the same as the one which is provided for 349 use. You can
+# find the original version of this image at
+# http://cumulus.gumstix.org/feeds/current/uclibc/images/gumstix-custom-verdex/
+# as any of the 'jffs2' files.
+wget $root/flash/root_fs_arm.verdex.r1410
+
+# This is the version of u-boot that is run on the gumstix. The original
+# download can be found at http://cumulus.gumstix.org/feeds/u-boot/
+wget $root/flash/u-boot-verdex-400-r1604.bin
+
+# This is the kernel provided by 349
+wget $root/flash/uimage
+
+# Create the image
+dd of=flash.img bs=128k count=256 if=/dev/zero
+dd of=flash.img bs=128k conv=notrunc if=u-boot-verdex-400-r1604.bin
+dd of=flash.img bs=128k conv=notrunc seek=2 if=root_fs_arm.verdex.r1410
+dd of=flash.img bs=128k conv=notrunc seek=248 if=uimage
+</code></pre>
+
+<p>Even the uimage can be downloaded from the
+<a href="http://cumulus.gumstix.org/feeds/">pre-built</a> downloads page that the
+gumstix provides. It's just convenient to use a 349 one.</p>
+
+<h2>Creating an SD card image</h2>
+
+<p>There is a tutorial on the gumstix wiki
+<a href="http://wiki.gumstix.org/index.php?title=Making_qemu_images">here</a>
+for creating and SD image. I never got these instructions to work out
+perfectly, but I was using a questionable unix system to build this
+image. Here's what I did that eventually worked:</p>
+
+<ol>
+<li><p>In OSX's Disk Utility program, create a disk image of 100MB formatted as
+MS-DOS (FAT). Don't have any partitions, but have a single partition with
+the GUID partition map. This will create a <code>.dmg</code> file.</p></li>
+<li><p>Eject the <code>.dmg</code> and using the &quot;Resize image&quot; command at the top, resize
+the image to ~700MB.</p></li>
+<li><p>Re-mount this image and click on the <code>.dmg</code> on the column on the left. Now
+click the tab &quot;Partition&quot; and change the partition layout to 2 partitions.
+Give the first partition ~200MB and be sure to format it as MS-DOS (FAT).
+It doesn't matter the name you give it.</p></li>
+<li><p>You now have a two-partition image which you can initialize. I had attempted
+a few times to do this in all unix as well, but I was never able to get 
+u-boot to recognize the sdcard image if I created the partitions in unix</p></li>
+<li><p>The gumstix is expecting a two-partition image which will have one FAT
+bootable partition, and one other ext3 partition with the root filesystem
+that 349 provides. You have a FAT partition, but OSX can't make ext3, so
+transfer this image to a unix machine for the next steps.</p></li>
+<li><p>Assuming your image is named <code>sdcard.dmg</code>, execute the following commands:</p>
+
+<pre><code>sudo losetup /dev/loop0 sdcard.dmg
+sudo kpartx -a /dev/loop0
+sudo mkfs.ext3 /dev/mapper/loop0p2
+sudo mount /dev/mapper/loop0p1 /media/bootfs
+sudo mount /dev/mapper/loop0p2 /media/rootfs
+
+# ... follow 349 instructions to put boot files in /media/bootfs
+# ... follow 349 instructions to put root filesystem in /media/rootfs
+
+sudo umount /media/bootfs
+sudo umount /media/rootfs
+sudo kpartx -d /dev/loop0
+sudo losetup -d /dev/loop0
+</code></pre></li>
+<li><p>You now have an SD card image! Copy this file to wherever you like for use
+with QEMU.</p></li>
+</ol>
+
+<h2>Useful things</h2>
+
+<ul>
+<li><p><a href="http://wiki.gumstix.org/index.php?title=Main_Page">Gumstix Wiki</a> - This
+site contains other instructions on how to build different images for the
+gumstix. Not all of it may be 100% accurate, however.</p></li>
+<li><p><code>man qemu</code> - look up all of the fancy options qemu's got, especially the GDB
+           related ones. I've not gotten the console working, but if you can
+           the keyboard/cursor might work a bit better.</p></li>
+</ul>
