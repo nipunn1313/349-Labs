@@ -24,7 +24,7 @@
 
 	\begin{section}{Introduction to Part 1 of the Lab}
 	\begin{subsection}{Overview} This part of the lab is meant to
-	familiarize you withh the hardware development platform and to
+	familiarize you with the hardware development platform and to
 	introduce you to some good coding practices.  You will get acquainted with the hardware
 	platform that we will be using throughout the course.  You
 	will also learn to use a revision-control system.  You are
@@ -1536,7 +1536,7 @@
 
         Course staff will assess your cost based on \texttt{PRE: src: theinitialstring (16 bytes), dst: PENGUINS (8 bytes)} input. \\
 
-        So, to come up with your overall cost, you should trace through your program, figure out what is being executed and what is dead code (so you can eliminate it), and look at each instruction and figure out the cost associated with it. To make your life easier, you can use GDB. The debugger may n't work on the gumstix right out-of-the-box, but just follow the instructions in the following section to get it up and running very quickly. \\
+        So, to come up with your overall cost, you should trace through your program, figure out what is being executed and what is dead code (so you can eliminate it), and look at each instruction and figure out the cost associated with it. To make your life easier, you can use GDB. The debugger may not work on the gumstix right out-of-the-box, but just follow the instructions in the following section to get it up and running very quickly. \\
 
         While doing optimizations, keep in mind that \texttt{gdb} will choke if you change the value of \texttt{lr} at any point. So we forbid you to touch \texttt{lr} or the last line in \texttt{strTable (mov pc, lr)}. We will only count \texttt{mov pc, lr} as an always branch rather than a conditional branch. \\
 
