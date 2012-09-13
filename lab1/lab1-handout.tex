@@ -445,9 +445,13 @@
 
 	\begin{subsubsection}{Configuring Minicom on Linux} To
 	configure minicom for connecting to the gumstix console on
-	Linux:
+	Linux:\\\\
+    (NOTE: In some versions of Linux, all ``\verb|minicom|''
+	commands must be run with ``\verb|sudo|'' in front of them
+	(``\verb|sudo minicom -sc on|'', for example). Your mileage may vary.):
+
 	\begin{enumerate} 
-	\item Execute ``\verb|minicom -sc on|'' to bring up the configuration menu.
+		\item Execute ``\verb|minicom -sc on|'' to bring up the configuration menu.
 
 		\begin{item}
 						Make the following changes under the ``Serial port setup'' menu:
@@ -562,7 +566,7 @@
 				%
 				\begin{enumerate}
 					\item Make sure the gumstix console is sitting at a shell prompt.  The
-					      \texttt{rz} program will be invoked automatically by minicom.
+					      \texttt{lrz} program will be invoked automatically by minicom.
 					\item Type ``\verb|C-A s|'' to bring up the ``Upload'' menu and select
 					      ``zmodem''.
 					\item Navigate to the appropriate location, pressing \texttt{SPACE} twice
@@ -574,7 +578,7 @@
 				To download a single file from the gumstix to the host PC:
 				%
 				\begin{enumerate}
-					\item Execute ``\verb|sz -b filename|'' to initiate a ZMODEM transfer for
+					\item Execute ``\verb|lsz -b filename|'' to initiate a ZMODEM transfer for
 					      the file ``filename''.
 					\item Minicom will automatically start downloading the file.
 				\end{enumerate}
