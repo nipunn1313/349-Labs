@@ -1,0 +1,6 @@
+FAQ from emails this year:
+
+1) Can we use your randGenerator for part 2b
+2) Do we have to worry about overflow? (They want to use factorial
+   function for oddball optimization... a common tactic)
+
